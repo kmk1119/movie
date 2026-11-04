@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CORS 연결 확인</title>
+  <style>
+    body { max-width: 760px; margin: 56px auto; padding: 0 20px; font: 16px/1.7 system-ui, sans-serif; color: #172033; }
+    input, button { font: inherit; padding: 9px 12px; border: 1px solid #bcc6d5; border-radius: 8px; }
+    input { width: 80px; } button { cursor: pointer; background: #eef3ff; margin: 8px 8px 8px 0; }
+    button:disabled { opacity: .5; cursor: wait; } pre { padding: 20px; background: #f0f3f8; border-radius: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    code { background: #f0f3f8; padding: 2px 5px; } .hint { color: #546174; }
+  </style>
+</head>
+<body>
+  <h1>CORS 연결 확인</h1>
+  <p>현재 프론트 출처: <strong id="origin"></strong></p>
+  <p>백엔드: <code>http://localhost:8080</code></p>
+  <p id="hint" class="hint"></p>
+  <label>회원 ID <input id="member" type="number" value="1" min="1" step="1"></label>
+  <p>
+    <button id="get">평점 조회 (GET)</button>
+    <button id="preflight">사전 요청 포함 조회 (OPTIONS → GET)</button>
+  </p>
+  <pre id="result" role="status">Spring Boot를 실행하고 버튼을 눌러주세요.</pre>
+  <p class="hint">F12 → Network에서 ratings 요청을 선택하세요. 사전 요청 버튼은 X-Cors-Test 헤더를 추가하여 OPTIONS 검사를 유도합니다.</p>
+  <script>
+    const output = document.querySelector('#result');
+    const buttons = [...document.querySelectorAll('button')];
+    document.querySelector('#origin').textContent = location.origin;
+    document.querySelector('#hint').textContent = location.origin === 'http://localhost:5173'
+      ? '서버에서 허용한 출처와 일치합니다.'
+      : '현재 서버 허용 출처는 http://localhost:5173입니다. 파일을 더블클릭하지 말고 해당 주소로 접속하세요.';
+
+    async function requestRatings(withPreflight) {
+      const memberId = Number(document.querySelector('#member').value);
+      if (!Number.isSafeInteger(memberId) || memberId <= 0) {
+        output.textContent = '회원 ID는 양의 정수를 입력해주세요.';
+        return;
+      }
+      const url = `http://localhost:8080/members/${memberId}/ratings`;
+      buttons.forEach((button) => button.disabled = true);
+      output.textContent = `요청 중: GET ${url}`;
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          ...(withPreflight ? { headers: { 'X-Cors-Test': 'true' } } : {}),
+        });
+        const text = await response.text();
+        let body = text;
+        try { body = JSON.stringify(JSON.parse(text), null, 2); } catch { /* JSON이 아닌 응답도 표시 */ }
+        output.textContent = `브라우저에서 응답 읽기 성공 → CORS 접근 허용\nHTTP ${response.status} ${response.statusText}\n${url}\n\n${body || '(빈 응답)'}${response.ok ? '' : '\n\nHTTP 오류입니다. 응답을 읽었으므로 이 요청의 CORS 검사와는 구분해서 확인하세요.'}`;
+      } catch (error) {
+        output.textContent = `응답을 읽지 못했어요: ${error.message}\n\n백엔드 실행 여부, 주소, 프론트 출처를 확인하세요. CORS 거부와 네트워크 실패는 이 메시지만으로 구분할 수 없으므로 F12 → Console과 Network를 확인하세요.`;
+      } finally {
+        buttons.forEach((button) => button.disabled = false);
+      }
+    }
+    document.querySelector('#get').addEventListener('click', () => requestRatings(false));
+    document.querySelector('#preflight').addEventListener('click', () => requestRatings(true));
+  </script>
+</body>
+</html>
