@@ -2,8 +2,11 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:3307/umc
     username: root
-    password: 1204
+    password: ${DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+jwt:
+  secret: ${JWT_SECRET} # 서명에 쓸 비밀키. 코드에 직접 쓰지 않습니다
+  access-expiration: ${JWT_ACCESS_EXPIRATION} # 토큰 유효시간(초)
